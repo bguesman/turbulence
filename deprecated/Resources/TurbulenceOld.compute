@@ -1,0 +1,167 @@
+// #pragma only_renderers d3d11 ps4 xboxone vulkan metal switch
+
+// #pragma kernel CLEAR_PRESSURE main=CLEAR_PRESSURE
+// #pragma kernel COPY_PRESSURE main=COPY_PRESSURE
+// #pragma kernel ADD_FORCE main=ADD_FORCE
+// #pragma kernel ADVECT_VELOCITY main=ADVECT_VELOCITY
+// #pragma kernel DIFFUSE_VELOCITY main=DIFFUSE_VELOCITY
+// #pragma kernel PRESSURE_STEP main=PRESSURE_STEP
+// #pragma kernel PROJECT_VELOCITY main=PROJECT_VELOCITY
+// #pragma kernel IMPOSE_PRESSURE_BOUNDARY main=IMPOSE_PRESSURE_BOUNDARY
+// #pragma kernel IMPOSE_BOUNDARY main=IMPOSE_BOUNDARY
+// #pragma kernel ADD_DENSITY main=ADD_DENSITY
+// #pragma kernel ADVECT_DENSITY main=ADVECT_DENSITY
+
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+// #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
+// #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariablesFunctions.hlsl"
+
+// RW_TEXTURE3D(float, _D);    // Density
+// RW_TEXTURE3D(float4, _V);   // Velocity
+// RW_TEXTURE3D(float, _P);    // Pressure
+// TEXTURE3D(_D_tex);          // Density temp buffer
+// TEXTURE3D(_V_tex);          // Velocity temp buffer
+// TEXTURE3D(_P_tex);          // Pressure temp buffer
+// TEXTURE2D(_DensitySource);          // Density source texture
+// float4 _resD;  // Resolution of density
+// float4 _resV;  // Resolution of velocity
+
+// float _dt;  // time step
+// float _viscosity;   // Viscosity
+// float4 _f;  // Force
+// float _d;  // Density
+// float _heightThreshold;  // Force height boundary
+
+// [numthreads(4, 4, 4)]
+// void CLEAR_PRESSURE(uint3 id : SV_DispatchThreadID) {
+//   _P[id] = 0;
+// }
+
+// [numthreads(4, 4, 4)]
+// void COPY_PRESSURE(uint3 id : SV_DispatchThreadID) {
+//   _P[id] = LOAD_TEXTURE3D_LOD(_P_tex, id, 0).x;
+// }
+
+// [numthreads(4, 4, 4)]
+// void ADD_FORCE(uint3 id : SV_DispatchThreadID) {
+//   if ((id.y / _resV.y) < _heightThreshold) {
+//     _V[id] += float4(_dt * _f.xyz, 0);
+//   }
+// }
+
+// [numthreads(4, 4, 4)]
+// void ADVECT_VELOCITY(uint3 id : SV_DispatchThreadID) {
+//   float3 uvVelocity = (id + 0.5) / _resV.xyz;
+
+//   float3 velocity = SAMPLE_TEXTURE3D_LOD(_V_tex, s_linear_clamp_sampler, uvVelocity, 0).xyz;
+
+//   float3 advectedUV = uvVelocity - (velocity * _dt);
+//   if (advectedUV.x < 0 || advectedUV.x > 1 
+//     || advectedUV.y < 0 || advectedUV.y > 1 
+//     || advectedUV.z < 0 || advectedUV.z > 1) {
+//     _V[id] = 0;
+//     return;
+//   }
+  
+//   float3 advectedVelocity = SAMPLE_TEXTURE3D_LOD(_V_tex, s_linear_clamp_sampler, advectedUV, 0).xyz;
+//   _V[id] = float4(advectedVelocity, 0);
+// }
+
+// [numthreads(4, 4, 4)]
+// void DIFFUSE_VELOCITY(uint3 id : SV_DispatchThreadID) {
+//   float a = _viscosity * _dt;
+
+//   float3 vLeft = SAMPLE_TEXTURE3D_LOD(_V_tex, s_linear_clamp_sampler, (id + 0.5 + float3(-1, 0, 0)) / _resV.xyz, 0).xyz;
+//   float3 vRight = SAMPLE_TEXTURE3D_LOD(_V_tex, s_linear_clamp_sampler, (id + 0.5 + float3(1, 0, 0)) / _resV.xyz, 0).xyz;
+//   float3 vDown = SAMPLE_TEXTURE3D_LOD(_V_tex, s_linear_clamp_sampler, (id + 0.5 + float3(0, -1, 0)) / _resV.xyz, 0).xyz;
+//   float3 vUp = SAMPLE_TEXTURE3D_LOD(_V_tex, s_linear_clamp_sampler, (id + 0.5 + float3(0, 1, 0)) / _resV.xyz, 0).xyz;
+//   float3 vBackward = SAMPLE_TEXTURE3D_LOD(_V_tex, s_linear_clamp_sampler, (id + 0.5 + float3(0, 0, -1)) / _resV.xyz, 0).xyz;
+//   float3 vForward = SAMPLE_TEXTURE3D_LOD(_V_tex, s_linear_clamp_sampler, (id + 0.5 + float3(0, 0, 1)) / _resV.xyz, 0).xyz;
+//   float3 v = SAMPLE_TEXTURE3D_LOD(_V_tex, s_linear_clamp_sampler, (id + 0.5) / _resV.xyz, 0).xyz;
+
+//   float3 laplacian = vLeft + vRight + vDown + vUp + vBackward + vForward - 6 * v;
+//   float3 diffused = a * laplacian + v;
+//   _V[id] = float4(diffused, 0);
+// }
+
+// uint3 clampBoundary(int3 uvw, int3 boundUp)
+// {
+//   return clamp(uvw, 0, boundUp - 1);
+// }
+
+// [numthreads(4, 4, 4)]
+// void PRESSURE_STEP(uint3 id : SV_DispatchThreadID) {
+//   int3 idInt = int3(id);
+
+//   // Compute divergence
+//   float vLeft = LOAD_TEXTURE3D_LOD(_V_tex, clampBoundary(idInt + int3(-1, 0, 0), _resV.xyz), 0).x;
+//   float vRight = LOAD_TEXTURE3D_LOD(_V_tex, clampBoundary(idInt + int3(1, 0, 0), _resV.xyz), 0).x;
+//   float vDown = LOAD_TEXTURE3D_LOD(_V_tex, clampBoundary(idInt + int3(0, -1, 0), _resV.xyz), 0).y;
+//   float vUp = LOAD_TEXTURE3D_LOD(_V_tex, clampBoundary(idInt + int3(0, 1, 0), _resV.xyz), 0).y;
+//   float vBackward = LOAD_TEXTURE3D_LOD(_V_tex, clampBoundary(idInt + int3(0, 0, -1), _resV.xyz), 0).z;
+//   float vForward = LOAD_TEXTURE3D_LOD(_V_tex, clampBoundary(idInt + int3(0, 0, 1), _resV.xyz), 0).z;
+
+//   float pLeft = LOAD_TEXTURE3D_LOD(_P_tex, clampBoundary(idInt + int3(-1, 0, 0), _resV.xyz), 0).x;
+//   float pRight = LOAD_TEXTURE3D_LOD(_P_tex, clampBoundary(idInt + int3(1, 0, 0), _resV.xyz), 0).x;
+//   float pDown = LOAD_TEXTURE3D_LOD(_P_tex, clampBoundary(idInt + int3(0, -1, 0), _resV.xyz), 0).x;
+//   float pUp = LOAD_TEXTURE3D_LOD(_P_tex, clampBoundary(idInt + int3(0, 1, 0), _resV.xyz), 0).x;
+//   float pBackward = LOAD_TEXTURE3D_LOD(_P_tex, clampBoundary(idInt + int3(0, 0, -1), _resV.xyz), 0).x;
+//   float pForward = LOAD_TEXTURE3D_LOD(_P_tex, clampBoundary(idInt + int3(0, 0, 1), _resV.xyz), 0).x;
+//   float pCenter = LOAD_TEXTURE3D_LOD(_P_tex, id, 0).x;
+
+//   float divergence = 0.5 * (vRight - vLeft + vUp - vDown + vForward - vBackward);
+//   float laplacian = (pLeft + pRight + pDown + pUp + pBackward + pForward);
+//   _P[id] = (laplacian-divergence) / 6;
+// }
+
+// [numthreads(4, 4, 4)]
+// void IMPOSE_PRESSURE_BOUNDARY(uint3 id : SV_DispatchThreadID) {
+//   if (id.x == 0 || id.y == 0 || id.z == 0 || id.x == _resV.x - 1 || id.y == _resV.y - 1 || id.z == _resV.z - 1) {
+//     uint3 clampedCoord = clamp(id, uint3(1, 1, 1), uint3(_resV.x - 2, _resV.y - 2, _resV.z - 2));
+//     _P[id] = _P[clampedCoord];
+//   }
+// }
+
+// [numthreads(4, 4, 4)]
+// void PROJECT_VELOCITY(uint3 id : SV_DispatchThreadID) {
+//   float pLeft = LOAD_TEXTURE3D_LOD(_P_tex, id + int3(-1, 0, 0), 0).x;
+//   float pRight = LOAD_TEXTURE3D_LOD(_P_tex, id + int3(1, 0, 0), 0).x;
+//   float pDown = LOAD_TEXTURE3D_LOD(_P_tex, id + int3(0, -1, 0), 0).x;
+//   float pUp = LOAD_TEXTURE3D_LOD(_P_tex, id + int3(0, 1, 0), 0).x;
+//   float pBackward = LOAD_TEXTURE3D_LOD(_P_tex, id + int3(0, 0, -1), 0).x;
+//   float pForward = LOAD_TEXTURE3D_LOD(_P_tex, id + int3(0, 0, 1), 0).x;
+//   _V[id] -= 0.5 * float4(pRight - pLeft, pUp - pDown, pForward - pBackward, 0);
+// }
+
+// [numthreads(4, 4, 4)]
+// void IMPOSE_BOUNDARY(uint3 id : SV_DispatchThreadID) {
+//   if (id.x == 0 || id.y == 0 || id.z == 0 || id.x == _resV.x - 1 || id.y == _resV.y - 1 || id.z == _resV.z - 1) {
+//     _V[id] = 0;
+//   }
+// }
+
+// [numthreads(8, 8, 1)]
+// void ADD_DENSITY(uint3 id : SV_DispatchThreadID) {
+//     float2 uv = (id.xy + 0.5) / _resD.xy;
+//     _D[uint3(id.x, 1, id.y)] += _dt * _d * max(0, (2 * pow(SAMPLE_TEXTURE2D_LOD(_DensitySource, s_linear_clamp_sampler, uv, 2).x, 1) + 0.0));
+//     _D[uint3(id.x, 0, id.y)] = 0;
+// }
+
+// [numthreads(4, 4, 4)]
+// void ADVECT_DENSITY(uint3 id : SV_DispatchThreadID) {
+//   float3 uvVelocity = (id + 0.5) / _resV.xyz;
+//   float3 uvDensity = (id + 0.5) / _resD.xyz;
+
+//   float3 velocity = SAMPLE_TEXTURE3D_LOD(_V_tex, s_linear_clamp_sampler, uvVelocity, 0).xyz;
+
+//   float3 advectedUV = uvDensity - (velocity * _dt);
+//   if (advectedUV.x < 0 || advectedUV.x > 1 
+//     || advectedUV.y < 0 || advectedUV.y > 1 
+//     || advectedUV.z < 0 || advectedUV.z > 1) {
+//     _D[id] = 0;
+//     return;
+//   }
+  
+//   float advectedDensity = SAMPLE_TEXTURE3D_LOD(_D_tex, s_linear_clamp_sampler, advectedUV, 0).x;
+//   _D[id] = max(0, advectedDensity);
+// }
