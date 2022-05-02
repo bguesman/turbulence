@@ -81,14 +81,19 @@ class DenseGrid : IGrid
         return this.datatype;
     }
 
-    public void Bind(ComputeShader computeShader, int kernel, string shaderVariable)
+    public void Bind(ComputeShader computeShader, int kernel, string shaderVariable,
+        string resolutionShaderVariable)
     {
         computeShader.SetTexture(kernel, shaderVariable, this.texture);
+        Vector4 resV4 = new Vector4(Resolution().x, Resolution().y, Resolution().z, 1);
+        computeShader.SetVector(resolutionShaderVariable, resV4);
     }
 
-    public void Bind(CommandBuffer commandBuffer, string shaderVariable)
+    public void Bind(CommandBuffer commandBuffer, string shaderVariable, string resolutionShaderVariable)
     {
         commandBuffer.SetGlobalTexture(shaderVariable, this.texture);
+        Vector4 resV4 = new Vector4(Resolution().x, Resolution().y, Resolution().z, 1);
+        commandBuffer.SetGlobalVector(resolutionShaderVariable, resV4);
     }
 
     /**

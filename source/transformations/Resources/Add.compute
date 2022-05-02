@@ -1,0 +1,22 @@
+#pragma only_renderers d3d11 ps4 xboxone vulkan metal switch
+
+#pragma kernel MAIN main=MAIN
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+
+RW_TEXTURE3D(float4, _Tex);
+float4 _Tex_resolution;
+
+float4 _constant;
+float _dt;
+
+float4 _boundLow;
+float4 _boundHigh;
+
+[numthreads(8, 8, 8)]
+void MAIN(uint3 id : SV_DispatchThreadID) 
+{
+  float3 uv = id * rcp(_Tex_resolution.xyz);
+  bool inBounds = all(uv <= _boundHigh.xyz && uv >= _boundLow.xyz);
+  _Tex[id] += inBounds ? _dt * _constant : 0;
+}

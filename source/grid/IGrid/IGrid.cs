@@ -29,14 +29,16 @@ interface IGrid
 
     /**
      * @brief: binds grid to specified shader variable in
-     * given compute instance.
+     * given compute instance, as well as grid resolution.
      * */
-    void Bind(ComputeShader computeShader, int kernel, string shaderVariable);
+    void Bind(ComputeShader computeShader, int kernel, string shaderVariable,
+        string resolutionShaderVariable);
 
     /**
-     * @brief: binds grid to specified shader variable globally.
+     * @brief: binds grid to specified shader variable globally, as well
+     * as grid resolution.
      * */
-    void Bind(CommandBuffer commandBuffer, string shaderVariable);
+    void Bind(CommandBuffer commandBuffer, string shaderVariable, string resolutionShaderVariable);
 }
 
 } // namespace Turbulence
