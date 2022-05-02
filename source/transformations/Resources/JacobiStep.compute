@@ -1,0 +1,37 @@
+#pragma only_renderers d3d11 ps4 xboxone vulkan metal switch
+
+#pragma kernel MAIN main=MAIN
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariablesFunctions.hlsl"
+
+#include "../Common/GridUtilities.hlsl"
+#include "../Common/Operators.hlsl"
+
+TEXTURE3D(_A); // Div * velocity
+TEXTURE3D(_B); // Pressure
+RW_TEXTURE3D(float4, _Target);
+float4 _Target_resolution;
+
+// For the usual pressure solve, alpha = -1 and beta = 1/6
+float _alpha;
+float _beta;
+
+[numthreads(8, 8, 8)]
+void MAIN(uint3 id : SV_DispatchThreadID) 
+{
+  GridUtilities::Neighborhood n = GridUtilities::GetNeighborhood(id, uint3(_Target_resolution.xyz));
+
+  float3 r = LOAD_TEXTURE3D_LOD(_B, n.right, 0).xyz;
+  float3 l = LOAD_TEXTURE3D_LOD(_B, n.left, 0).xyz;  
+  float3 u = LOAD_TEXTURE3D_LOD(_B, n.up, 0).xyz;
+  float3 d = LOAD_TEXTURE3D_LOD(_B, n.down, 0).xyz;
+  float3 f = LOAD_TEXTURE3D_LOD(_B, n.forward, 0).xyz;
+  float3 b = LOAD_TEXTURE3D_LOD(_B, n.backward, 0).xyz;
+  
+  float3 a = LOAD_TEXTURE3D_LOD(_A, id, 0).xyz;
+
+  float3 result = ((r + l + u + d + f + b) + _alpha * a) * _beta;
+  _Target[id] = float4(result, 0);
+}

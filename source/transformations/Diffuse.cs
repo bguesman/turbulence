@@ -8,7 +8,6 @@ namespace Turbulence
  * */
 class Diffuse : ITransformation
 {
-    // Name of this transformation
     public float viscosity;
     string name;
 
