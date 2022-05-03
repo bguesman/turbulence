@@ -1,0 +1,40 @@
+#pragma only_renderers d3d11 ps4 xboxone vulkan metal switch
+
+#pragma kernel MAIN main=MAIN
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariablesFunctions.hlsl"
+
+#include "../Common/GridUtilities.hlsl"
+#include "../Common/Operators.hlsl"
+
+TEXTURE3D(_Curl);
+RW_TEXTURE3D(float4, _Target);
+float4 _Tex_resolution;
+
+float _vorticity;
+float _dt;
+
+[numthreads(8, 8, 8)]
+void MAIN(uint3 id : SV_DispatchThreadID) 
+{
+  float a = _vorticity * _dt;
+  GridUtilities::Neighborhood n = GridUtilities::GetNeighborhood(id, uint3(_Tex_resolution.xyz));
+
+  float3 r = LOAD_TEXTURE3D_LOD(_Curl, n.right, 0).xyz;
+  float3 l = LOAD_TEXTURE3D_LOD(_Curl, n.left, 0).xyz; 
+  float3 u = LOAD_TEXTURE3D_LOD(_Curl, n.up, 0).xyz;
+  float3 d = LOAD_TEXTURE3D_LOD(_Curl, n.down, 0).xyz;
+  float3 f = LOAD_TEXTURE3D_LOD(_Curl, n.forward, 0).xyz;
+  float3 b = LOAD_TEXTURE3D_LOD(_Curl, n.backward, 0).xyz;
+  float3 c = LOAD_TEXTURE3D_LOD(_Curl, id, 0).xyz;
+
+  // Taken from Fedkiw's paper where this idea was introduced, Fedkiw 2001
+  float3 N = Operators::Gradient(length(r), length(l), length(u), length(d), length(f), length(b));
+  // We have to normalize N manually, since its components could be zero
+  N *= rcp(length(N) + 1e-6);
+  float3 vorticityForce = a * cross(N, c);
+
+  _Target[id] += float4(vorticityForce, 0);
+}

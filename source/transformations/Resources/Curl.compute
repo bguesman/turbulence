@@ -1,0 +1,29 @@
+#pragma only_renderers d3d11 ps4 xboxone vulkan metal switch
+
+#pragma kernel MAIN main=MAIN
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariablesFunctions.hlsl"
+
+#include "../Common/GridUtilities.hlsl"
+#include "../Common/Operators.hlsl"
+
+TEXTURE3D(_Tex);
+RW_TEXTURE3D(float4, _Target);
+float4 _Tex_resolution;
+
+[numthreads(8, 8, 8)]
+void MAIN(uint3 id : SV_DispatchThreadID) 
+{
+  GridUtilities::Neighborhood n = GridUtilities::GetNeighborhood(id, uint3(_Tex_resolution.xyz));
+
+  float3 r = LOAD_TEXTURE3D_LOD(_Tex, n.right, 0).xyz;
+  float3 l = LOAD_TEXTURE3D_LOD(_Tex, n.left, 0).xyz;  
+  float3 u = LOAD_TEXTURE3D_LOD(_Tex, n.up, 0).xyz;
+  float3 d = LOAD_TEXTURE3D_LOD(_Tex, n.down, 0).xyz;
+  float3 f = LOAD_TEXTURE3D_LOD(_Tex, n.forward, 0).xyz;
+  float3 b = LOAD_TEXTURE3D_LOD(_Tex, n.backward, 0).xyz;
+
+  _Target[id] = float4(Operators::Curl(r, l, u, d, f, b), 0);
+}
