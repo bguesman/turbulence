@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Turbulence
 {
@@ -34,6 +35,9 @@ class Boundary : ITransformation
     const string sTexture = "_Tex";
     const string sTextureResolution = "_Tex_resolution";
 
+    // Profiling
+    ProfilingSampler profilingSampler;
+
     public Boundary(BoundaryCondition condition, string name="Set Constant")
     {
         // Arguments
@@ -46,15 +50,20 @@ class Boundary : ITransformation
         {
             this.handles[i] = computeShader.FindKernel(kKernels[i]);
         }
+
+        // Profiling
+        this.profilingSampler = new ProfilingSampler(name);
     }
 
-    public void Transform(IGrid grid)
-    {
-        // Select compute handle for appropriate boundary condition
-        int handle = handles[(int) condition];
-
-        Bind(grid, handle);
-        TransformationUtilities.DispatchAcrossGrid(grid, computeShader, handle);
+    public void Transform(TransformationContext context, IGrid grid)
+    {   
+        using (new ProfilingScope(context.cmd, profilingSampler))
+        {
+            // Select compute handle for appropriate boundary condition
+            int handle = handles[(int) condition];
+            Bind(grid, handle);
+            context.DispatchAcrossGrid(grid, computeShader, handle);
+        }
     }
 
     private void Bind(IGrid grid, int handle)

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Turbulence
 {
@@ -27,6 +28,9 @@ class VorticityConfinement : ITransformation
     // curl computation step
     Curl curlStep;
 
+    // Profiling
+    ProfilingSampler profilingSampler;
+    
     public VorticityConfinement(float vorticity, string name="VorticityConfinement")
     {
         // Arguments
@@ -39,24 +43,30 @@ class VorticityConfinement : ITransformation
 
         // Curl computation
         curlStep = new Curl("Vorticity Confinement Curl");
+
+        // Profiling
+        this.profilingSampler = new ProfilingSampler(name);
     }
 
-    public void Transform(IGrid velocity, IGrid curl, float dt)
-    {
-        // Compute curl
-        curlStep.Transform(velocity, curl);
+    public void Transform(TransformationContext context, IGrid velocity, IGrid curl)
+    {   
+        using (new ProfilingScope(context.cmd, profilingSampler))
+        {
+            // Compute curl
+            curlStep.Transform(context, velocity, curl);
 
-        // Use it to compute vorticity confinement force
-        Bind(velocity, curl, dt);
-        TransformationUtilities.DispatchAcrossGrid(velocity, computeShader, handle);
+            // Use it to compute vorticity confinement force
+            Bind(context, velocity, curl);
+            context.DispatchAcrossGrid(velocity, computeShader, handle);
+        }
     }
 
-    private void Bind(IGrid velocity, IGrid curl, float dt)
+    private void Bind(TransformationContext context, IGrid velocity, IGrid curl)
     {
         curl.Bind(computeShader, handle, sCurl, sTextureResolution);
         velocity.Bind(computeShader, handle, sTarget, sTextureResolution);
         computeShader.SetFloat(sVorticity, vorticity);
-        computeShader.SetFloat(sDt, dt);
+        computeShader.SetFloat(sDt, context.dt);
     }
 }
 

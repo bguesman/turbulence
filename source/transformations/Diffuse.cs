@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Turbulence
 {
@@ -24,6 +25,9 @@ class Diffuse : ITransformation
     const string sViscosity = "_viscosity";
     const string sDt = "_dt";
 
+    // Profiling
+    ProfilingSampler profilingSampler;
+
     public Diffuse(float viscosity, string name="Diffuse")
     {
         // Arguments
@@ -33,20 +37,26 @@ class Diffuse : ITransformation
         // Compute shader data
         this.computeShader = TransformationUtilities.LoadComputeShader(kComputeShaderName);
         this.handle = computeShader.FindKernel(kKernel);
+
+        // Profiling
+        this.profilingSampler = new ProfilingSampler(name);
     }
 
-    public void Transform(IGrid input, IGrid output, float dt)
+    public void Transform(TransformationContext context, IGrid input, IGrid output)
     {
-        Bind(input, output, dt);
-        TransformationUtilities.DispatchAcrossGrid(output, computeShader, handle);
+        using (new ProfilingScope(context.cmd, profilingSampler))
+        {
+            Bind(context, input, output);
+            context.DispatchAcrossGrid(output, computeShader, handle);
+        }
     }
 
-    private void Bind(IGrid input, IGrid output, float dt)
+    private void Bind(TransformationContext context, IGrid input, IGrid output)
     {
         input.Bind(computeShader, handle, sTexture, sTextureResolution);
         output.Bind(computeShader, handle, sTarget, sTextureResolution);
         computeShader.SetFloat(sViscosity, viscosity);
-        computeShader.SetFloat(sDt, dt);
+        computeShader.SetFloat(sDt, context.dt);
     }
 }
 

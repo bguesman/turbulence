@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Turbulence
 {
@@ -15,6 +16,9 @@ class JacobiSolve : ITransformation
     // Jacobi steps
     JacobiStep[] steps = null;
 
+    // Profiling
+    ProfilingSampler profilingSampler;
+
     public JacobiSolve(int steps, float alpha, float beta, string name="Jacobi Solve")
     {
         // Arguments
@@ -28,21 +32,27 @@ class JacobiSolve : ITransformation
         this.steps = new JacobiStep[steps];
         for (int i = 0; i < this.steps.Length; i++)
             this.steps[i] = new JacobiStep(alpha, beta, "Jacobi Step " + i);
+
+        // Profiling
+        this.profilingSampler = new ProfilingSampler(name);
     }
 
-    public void Transform(IGrid A, IGrid B, IGrid Output)
+    public void Transform(TransformationContext context, IGrid A, IGrid B, IGrid Output)
     {
-        IGrid inB = B;
-        IGrid target = Output;
-        foreach (JacobiStep s in steps)
+        using (new ProfilingScope(context.cmd, profilingSampler))
         {
-            // Do the transformation
-            s.Transform(A, inB, target);
+            IGrid inB = B;
+            IGrid target = Output;
+            foreach (JacobiStep s in steps)
+            {
+                // Do the transformation
+                s.Transform(context, A, inB, target);
 
-            // Swap grids for the next iteration
-            IGrid temp = target;
-            target = inB;
-            inB = temp;
+                // Swap grids for the next iteration
+                IGrid temp = target;
+                target = inB;
+                inB = temp;
+            }
         }
     }
 }

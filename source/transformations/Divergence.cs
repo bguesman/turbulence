@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Turbulence
 {
@@ -21,6 +22,9 @@ class Divergence : ITransformation
     const string sTarget = "_Target";
     const string sTextureResolution = "_Tex_resolution";
 
+    // Profiling
+    ProfilingSampler profilingSampler;
+
     public Divergence(string name="Divergence")
     {
         // Arguments
@@ -29,12 +33,18 @@ class Divergence : ITransformation
         // Compute shader data
         this.computeShader = TransformationUtilities.LoadComputeShader(kComputeShaderName);
         this.handle = computeShader.FindKernel(kKernel);
+
+        // Profiling
+        this.profilingSampler = new ProfilingSampler(name);
     }
 
-    public void Transform(IGrid input, IGrid output)
+    public void Transform(TransformationContext context, IGrid input, IGrid output)
     {
-        Bind(input, output);
-        TransformationUtilities.DispatchAcrossGrid(output, computeShader, handle);
+        using (new ProfilingScope(context.cmd, profilingSampler))
+        {
+            Bind(input, output);
+            context.DispatchAcrossGrid(output, computeShader, handle);
+        }
     }
 
     private void Bind(IGrid input, IGrid output)

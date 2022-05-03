@@ -59,16 +59,6 @@ static class TransformationUtilities
     {
         return UnityEngine.Object.Instantiate<ComputeShader>(Resources.Load<ComputeShader>(name));
     }
-
-    public static void DispatchAcrossGrid(IGrid grid, ComputeShader computeShader, int handle)
-    {
-        uint groupSizeX = 1, groupSizeY = 1, groupSizeZ = 1;
-        computeShader.GetKernelThreadGroupSizes(handle, out groupSizeX, out groupSizeY, out groupSizeZ);
-        computeShader.Dispatch(handle, 
-            (int) Mathf.Ceil(grid.Resolution().x / groupSizeX),
-            (int) Mathf.Ceil(grid.Resolution().y / groupSizeY),
-            (int) Mathf.Ceil(grid.Resolution().z / groupSizeZ));
-    }
 }
 
 } // namespace Turbulence

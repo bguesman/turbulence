@@ -67,7 +67,7 @@ class FluidSimulation : MonoBehaviour
         diffuseVelocity = new Diffuse(0.005f, "Diffuse Velocity");
         pressureSolve = new PressureSolve(40, "Pressure Solve");
         velocityProject = new Project("Velocity Project");
-        vorticity = new VorticityConfinement(50.0f, "Vorticity Confinement");
+        vorticity = new VorticityConfinement(10.0f, "Vorticity Confinement");
 
         // Clear grids on start
         TransformationContext context = new TransformationContext(Time.deltaTime);
@@ -124,17 +124,17 @@ class FluidSimulation : MonoBehaviour
         //     addRandomVelocityPerturbations.constant.y = 2 * Mathf.Sin(Time.time * 2.17f);
         // else
         //     addVelocity.constant.y = 0;
-        // addRandomVelocityPerturbations.Transform(velocity, dt);
+        // addRandomVelocityPerturbations.Transform(context, velocity);
     }
 
     void SolveVelocity(TransformationContext context)
     {
-        // advectVelocity.Transform(velocity, velocityTemp, velocity, dt);
-        // diffuseVelocity.Transform(velocityTemp, velocity, dt);
-        // pressureSolve.Transform(velocity, divergenceV, pressureTemp, pressure);
-        // velocityProject.Transform(pressure, velocity);
-        // velocityBoundary.Transform(velocity);
-        // vorticity.Transform(velocity, curlV, dt);
+        advectVelocity.Transform(context, velocity, velocityTemp, velocity);
+        diffuseVelocity.Transform(context, velocityTemp, velocity);
+        pressureSolve.Transform(context, velocity, divergenceV, pressureTemp, pressure);
+        velocityProject.Transform(context, pressure, velocity);
+        velocityBoundary.Transform(context, velocity);
+        vorticity.Transform(context, velocity, curlV);
     }
 
     void UpdateDensity(TransformationContext context)

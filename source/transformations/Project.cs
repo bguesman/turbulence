@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Turbulence
 {
@@ -21,6 +22,9 @@ class Project : ITransformation
     const string sTarget = "_Target";
     const string sTextureResolution = "_Tex_resolution";
 
+    // Profiling
+    ProfilingSampler profilingSampler;
+
     public Project(string name="Project")
     {
         // Arguments
@@ -29,12 +33,18 @@ class Project : ITransformation
         // Compute shader data
         this.computeShader = TransformationUtilities.LoadComputeShader(kComputeShaderName);
         this.handle = computeShader.FindKernel(kKernel);
+
+        // Profiling
+        this.profilingSampler = new ProfilingSampler(name);
     }
 
-    public void Transform(IGrid pressure, IGrid velocity)
-    {
-        Bind(pressure, velocity);
-        TransformationUtilities.DispatchAcrossGrid(velocity, computeShader, handle);
+    public void Transform(TransformationContext context, IGrid pressure, IGrid velocity)
+    {   
+        using (new ProfilingScope(context.cmd, profilingSampler))
+        {
+            Bind(pressure, velocity);
+            context.DispatchAcrossGrid(velocity, computeShader, handle);
+        }
     }
 
     private void Bind(IGrid pressure, IGrid velocity)
