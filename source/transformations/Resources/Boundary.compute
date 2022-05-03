@@ -1,0 +1,60 @@
+#pragma only_renderers d3d11 ps4 xboxone vulkan metal switch
+
+#pragma kernel NO_SLIP main=NO_SLIP
+#pragma kernel FREE_SLIP main=FREE_SLIP
+#pragma kernel NEUMANN main=NEUMANN
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+
+RW_TEXTURE3D(float4, _Tex);
+float4 _Tex_resolution;
+
+[numthreads(8, 8, 8)]
+void NO_SLIP(uint3 id : SV_DispatchThreadID) 
+{
+    if (any(id == (uint) 0) || any (id == (uint) (_Tex_resolution.xyz - 1)))
+        _Tex[id] = 0;
+}
+
+[numthreads(8, 8, 8)]
+void FREE_SLIP(uint3 id : SV_DispatchThreadID) 
+{
+    float4 valueToWrite = _Tex[id];
+    if (id.x == 0 || id.x == _Tex_resolution.x - 1)
+        valueToWrite.x = 0;
+    if (id.y == 0 || id.y == _Tex_resolution.y - 1)
+        valueToWrite.y = 0;
+    if (id.z == 0 || id.z == _Tex_resolution.z - 1)
+        valueToWrite.z = 0;
+    _Tex[id] = valueToWrite;
+}
+
+[numthreads(8, 8, 8)]
+void NEUMANN(uint3 id : SV_DispatchThreadID) 
+{
+    // This condition really only makes sense for scalar fields
+    float4 valueToWrite = _Tex[id];
+    if (id.x == 0 || id.x == _Tex_resolution.x - 1)
+    {
+        int3 offset = id.x == 0 ? int3(1, 0, 0) : int3(-1, 0, 0);
+        float neighbor = _Tex[(int3) id + offset].x;
+        // neighbor - valueToWrite needs to be 0
+        valueToWrite.x = neighbor;
+    } 
+    else if (id.y == 0 || id.y == _Tex_resolution.y - 1)
+    {
+        int3 offset = id.y == 0 ? int3(0, 1, 0) : int3(0, -1, 0);
+        float neighbor = _Tex[(int3) id + offset].x;
+        // neighbor - valueToWrite needs to be 0
+        valueToWrite.x = neighbor;
+    }
+    else if (id.z == 0 || id.z == _Tex_resolution.z - 1)
+    {
+        int3 offset = id.z == 0 ? int3(0, 0, 1) : int3(0, 0, -1);
+        float neighbor = _Tex[(int3) id + offset].x;
+        // neighbor - valueToWrite.x needs to be 0
+        valueToWrite.x = neighbor;
+    }
+
+    _Tex[id] = valueToWrite;
+}

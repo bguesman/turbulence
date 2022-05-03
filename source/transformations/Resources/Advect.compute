@@ -17,7 +17,7 @@ float _dt;
 [numthreads(8, 8, 8)]
 void MAIN(uint3 id : SV_DispatchThreadID) 
 {
-  float3 uv = id * rcp(_D_resolution.xyz);
+  float3 uv = (id + 0.5) * rcp(_D_resolution.xyz);
   float3 v = SAMPLE_TEXTURE3D_LOD(_V, s_linear_clamp_sampler, uv, 0).xyz;
   float3 advectedUV = saturate(uv - v * _dt);
   _DOut[id] = SAMPLE_TEXTURE3D_LOD(_DIn, s_linear_clamp_sampler, advectedUV, 0);

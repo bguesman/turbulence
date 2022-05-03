@@ -10,19 +10,14 @@
 #include "../Common/Operators.hlsl"
 
 TEXTURE3D(_Tex);
-RW_TEXTURE3D(float4, _Target);
+RW_TEXTURE3D(float, _Target);
 float4 _Tex_resolution;
-
-float _viscosity;
-float _dt;
 
 [numthreads(8, 8, 8)]
 void MAIN(uint3 id : SV_DispatchThreadID) 
 {
-  float a = _viscosity * _dt;
   GridUtilities::Neighborhood n = GridUtilities::GetNeighborhood(id, uint3(_Tex_resolution.xyz));
 
-  float3 c = LOAD_TEXTURE3D_LOD(_Tex, id, 0).xyz;
   float3 r = LOAD_TEXTURE3D_LOD(_Tex, n.right, 0).xyz;
   float3 l = LOAD_TEXTURE3D_LOD(_Tex, n.left, 0).xyz;  
   float3 u = LOAD_TEXTURE3D_LOD(_Tex, n.up, 0).xyz;
@@ -30,6 +25,5 @@ void MAIN(uint3 id : SV_DispatchThreadID)
   float3 f = LOAD_TEXTURE3D_LOD(_Tex, n.forward, 0).xyz;
   float3 b = LOAD_TEXTURE3D_LOD(_Tex, n.backward, 0).xyz;
 
-  float3 diffused = a * Operators::Laplacian(r, l, u, d, f, b, c) + c;
-  _Target[id] = float4(diffused, 0);
+  _Target[id] = Operators::Divergence(r, l, u, d, f, b);
 }

@@ -32,17 +32,17 @@ class JacobiSolve : ITransformation
 
     public void Transform(IGrid A, IGrid B, IGrid Output)
     {
-        IGrid inA = A;
+        IGrid inB = B;
         IGrid target = Output;
         foreach (JacobiStep s in steps)
         {
             // Do the transformation
-            s.Transform(inA, B, target);
+            s.Transform(A, inB, target);
 
             // Swap grids for the next iteration
             IGrid temp = target;
-            target = inA;
-            inA = temp;
+            target = inB;
+            inB = temp;
         }
     }
 }

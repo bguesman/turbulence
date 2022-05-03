@@ -13,23 +13,18 @@ TEXTURE3D(_Tex);
 RW_TEXTURE3D(float4, _Target);
 float4 _Tex_resolution;
 
-float _viscosity;
-float _dt;
-
 [numthreads(8, 8, 8)]
 void MAIN(uint3 id : SV_DispatchThreadID) 
 {
-  float a = _viscosity * _dt;
   GridUtilities::Neighborhood n = GridUtilities::GetNeighborhood(id, uint3(_Tex_resolution.xyz));
 
-  float3 c = LOAD_TEXTURE3D_LOD(_Tex, id, 0).xyz;
-  float3 r = LOAD_TEXTURE3D_LOD(_Tex, n.right, 0).xyz;
-  float3 l = LOAD_TEXTURE3D_LOD(_Tex, n.left, 0).xyz;  
-  float3 u = LOAD_TEXTURE3D_LOD(_Tex, n.up, 0).xyz;
-  float3 d = LOAD_TEXTURE3D_LOD(_Tex, n.down, 0).xyz;
-  float3 f = LOAD_TEXTURE3D_LOD(_Tex, n.forward, 0).xyz;
-  float3 b = LOAD_TEXTURE3D_LOD(_Tex, n.backward, 0).xyz;
+  float r = LOAD_TEXTURE3D_LOD(_Tex, n.right, 0).x;
+  float l = LOAD_TEXTURE3D_LOD(_Tex, n.left, 0).x;  
+  float u = LOAD_TEXTURE3D_LOD(_Tex, n.up, 0).x;
+  float d = LOAD_TEXTURE3D_LOD(_Tex, n.down, 0).x;
+  float f = LOAD_TEXTURE3D_LOD(_Tex, n.forward, 0).x;
+  float b = LOAD_TEXTURE3D_LOD(_Tex, n.backward, 0).x;
 
-  float3 diffused = a * Operators::Laplacian(r, l, u, d, f, b, c) + c;
-  _Target[id] = float4(diffused, 0);
+  float3 gradient = Operators::Gradient(r, l, u, d, f, b);
+  _Target[id] -= float4(gradient, 0);
 }
