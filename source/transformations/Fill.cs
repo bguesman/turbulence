@@ -46,14 +46,14 @@ class Fill : ITransformation
         this.name = name;
 
         // Compute shader data
-        this.computeShader = Resources.Load<ComputeShader>(kComputeShaderName);
+        this.computeShader = TransformationUtilities.LoadComputeShader(kComputeShaderName);
         this.handle = computeShader.FindKernel(kKernel);
     }
 
-    public void Transform(IGrid grid)
+    public void Transform(TransformationContext context, IGrid grid)
     {
         Bind(grid);
-        TransformationUtilities.DispatchAcrossGrid(grid, computeShader, handle);
+        context.DispatchAcrossGrid(grid, computeShader, handle);
     }
 
     private void Bind(IGrid grid)

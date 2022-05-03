@@ -41,7 +41,7 @@ class Boundary : ITransformation
         this.name = name;
 
         // Compute shader data
-        this.computeShader = Resources.Load<ComputeShader>(kComputeShaderName);
+        this.computeShader = TransformationUtilities.LoadComputeShader(kComputeShaderName);
         for (int i = 0; i < (int) BoundaryCondition.eNumBoundaryConditions; i++)
         {
             this.handles[i] = computeShader.FindKernel(kKernels[i]);

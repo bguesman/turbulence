@@ -47,22 +47,22 @@ class Add : ITransformation
         this.name = name;
 
         // Compute shader data
-        this.computeShader = Resources.Load<ComputeShader>(kComputeShaderName);
+        this.computeShader = TransformationUtilities.LoadComputeShader(kComputeShaderName);
         this.handle = computeShader.FindKernel(kKernel);
     }
 
-    public void Transform(IGrid grid, float dt)
+    public void Transform(TransformationContext context, IGrid grid)
     {
-        Bind(grid, dt);
-        TransformationUtilities.DispatchAcrossGrid(grid, computeShader, handle);
+        Bind(context, grid);
+        context.DispatchAcrossGrid(grid, computeShader, handle);
     }
 
-    private void Bind(IGrid grid, float dt)
+    private void Bind(TransformationContext context, IGrid grid)
     {
         grid.Bind(computeShader, handle, sTexture, sTextureResolution);
         bounds.Bind(computeShader, sBoundsLow, sBoundsHigh);
         computeShader.SetVector(sConstant, new Vector4(constant.x, constant.y, constant.z, 0));
-        computeShader.SetFloat(sDt, dt);
+        computeShader.SetFloat(sDt, context.dt);
     }
 }
 

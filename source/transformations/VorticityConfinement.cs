@@ -34,7 +34,7 @@ class VorticityConfinement : ITransformation
         this.name = name;
 
         // Compute shader data
-        this.computeShader = Resources.Load<ComputeShader>(kComputeShaderName);
+        this.computeShader = TransformationUtilities.LoadComputeShader(kComputeShaderName);
         this.handle = computeShader.FindKernel(kKernel);
 
         // Curl computation

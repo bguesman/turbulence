@@ -33,26 +33,26 @@ class Advect : ITransformation
         this.name = name;
 
         // Compute shader data
-        this.computeShader = Resources.Load<ComputeShader>(kComputeShaderName);
+        this.computeShader = TransformationUtilities.LoadComputeShader(kComputeShaderName);
         this.handle = computeShader.FindKernel(kKernel);
     }
 
     /**
      * @brief: advects grid D by grid V.
      * */
-    public void Transform(IGrid DIn, IGrid DOut, IGrid V, float dt)
+    public void Transform(TransformationContext context, IGrid DIn, IGrid DOut, IGrid V)
     {
-        Bind(DIn, DOut, V, dt);
+        Bind(context, DIn, DOut, V);
         // Dispatch across D, since we are writing to D.
-        TransformationUtilities.DispatchAcrossGrid(DOut, computeShader, handle);
+        context.DispatchAcrossGrid(DOut, computeShader, handle);
     }
 
-    private void Bind(IGrid DIn, IGrid DOut, IGrid V, float dt)
+    private void Bind(TransformationContext context, IGrid DIn, IGrid DOut, IGrid V)
     {
         DIn.Bind(computeShader, handle, sDIn, sDResolution);
         DOut.Bind(computeShader, handle, sDOut, sDResolution);
         V.Bind(computeShader, handle, sV, sVResolution);
-        computeShader.SetFloat(sDt, dt);
+        computeShader.SetFloat(sDt, context.dt);
     }
 }
 

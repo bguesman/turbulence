@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Turbulence
 {
@@ -25,10 +26,14 @@ class FluidSimulation : MonoBehaviour
     // Grid resolution
     Vector3Int kResolution = new Vector3Int(128, 128, 128);
 
+    // For profiling
+    ProfilingSampler profilingSampler;
+
     public void OnEnable ()
     {
         // Constants
         kResolution = new Vector3Int(128, 128, 128);
+        profilingSampler = new ProfilingSampler("Fluid Volume Update");
 
         // Define grids
         this.velocity = new DenseGrid(kResolution, GridDatatype.eVector3, "Velocity");
@@ -65,10 +70,12 @@ class FluidSimulation : MonoBehaviour
         vorticity = new VorticityConfinement(50.0f, "Vorticity Confinement");
 
         // Clear grids on start
-        clearDensity.Transform(density);
-        clearDensityTemp.Transform(densityTemp);
-        clearVelocity.Transform(velocity);
-        clearVelocityTemp.Transform(velocityTemp);
+        TransformationContext context = new TransformationContext(Time.deltaTime);
+        clearDensity.Transform(context, density);
+        clearDensityTemp.Transform(context, densityTemp);
+        clearVelocity.Transform(context, velocity);
+        clearVelocityTemp.Transform(context, velocityTemp);
+        context.ExecuteCommands();
     }
 
     /**
@@ -76,11 +83,16 @@ class FluidSimulation : MonoBehaviour
      * */
     public void Update()
     {
-        float dt = Time.deltaTime;
-        SwapGrids();
-        AddForces(dt);
-        SolveVelocity(dt);
-        UpdateDensity(dt);
+        TransformationContext context = new TransformationContext(Time.deltaTime);
+
+        using (new ProfilingScope(context.cmd, profilingSampler))
+        {
+            SwapGrids();
+            AddForces(context);
+            SolveVelocity(context);
+            UpdateDensity(context);
+            context.ExecuteCommands();
+        }
     }
 
     // Sub-update steps
@@ -96,40 +108,40 @@ class FluidSimulation : MonoBehaviour
         // velocity = velocitySwap;
     }
 
-    void AddForces(float dt)
+    void AddForces(TransformationContext context)
     {
-        addVelocity.Transform(velocity, dt);
+        addVelocity.Transform(context, velocity);
 
-        if (Time.frameCount % 60 < 5)
-            addRandomVelocityPerturbations.constant.x = 2 * Mathf.Sin(Time.time);
-        else
-            addVelocity.constant.x = 0;
-        if (Time.frameCount % 93 < 5)
-            addRandomVelocityPerturbations.constant.z = 2 * Mathf.Sin(Time.time * 1.31f);
-        else
-            addVelocity.constant.z = 0;
-        if (Time.frameCount % 51 < 4)
-            addRandomVelocityPerturbations.constant.y = 2 * Mathf.Sin(Time.time * 2.17f);
-        else
-            addVelocity.constant.y = 0;
-        addRandomVelocityPerturbations.Transform(velocity, dt);
+        // if (Time.frameCount % 60 < 5)
+        //     addRandomVelocityPerturbations.constant.x = 2 * Mathf.Sin(Time.time);
+        // else
+        //     addVelocity.constant.x = 0;
+        // if (Time.frameCount % 93 < 5)
+        //     addRandomVelocityPerturbations.constant.z = 2 * Mathf.Sin(Time.time * 1.31f);
+        // else
+        //     addVelocity.constant.z = 0;
+        // if (Time.frameCount % 51 < 4)
+        //     addRandomVelocityPerturbations.constant.y = 2 * Mathf.Sin(Time.time * 2.17f);
+        // else
+        //     addVelocity.constant.y = 0;
+        // addRandomVelocityPerturbations.Transform(velocity, dt);
     }
 
-    void SolveVelocity(float dt)
+    void SolveVelocity(TransformationContext context)
     {
-        advectVelocity.Transform(velocity, velocityTemp, velocity, dt);
-        diffuseVelocity.Transform(velocityTemp, velocity, dt);
-        pressureSolve.Transform(velocity, divergenceV, pressureTemp, pressure);
-        velocityProject.Transform(pressure, velocity);
-        velocityBoundary.Transform(velocity);
-        vorticity.Transform(velocity, curlV, dt);
+        // advectVelocity.Transform(velocity, velocityTemp, velocity, dt);
+        // diffuseVelocity.Transform(velocityTemp, velocity, dt);
+        // pressureSolve.Transform(velocity, divergenceV, pressureTemp, pressure);
+        // velocityProject.Transform(pressure, velocity);
+        // velocityBoundary.Transform(velocity);
+        // vorticity.Transform(velocity, curlV, dt);
     }
 
-    void UpdateDensity(float dt)
+    void UpdateDensity(TransformationContext context)
     {
         // Update density
-        addDensity.Transform(densityTemp, dt);
-        advectDensity.Transform(densityTemp, density, velocity, dt);
+        addDensity.Transform(context, densityTemp);
+        advectDensity.Transform(context, densityTemp, density, velocity);
     }
 
     public DenseGrid DensityGrid()
