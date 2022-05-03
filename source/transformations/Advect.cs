@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Turbulence
 {
@@ -27,6 +28,9 @@ class Advect : ITransformation
     const string sDResolution = "_D_resolution";
     const string sDt = "_dt";
 
+    // Profiling
+    ProfilingSampler profilingSampler;
+
     public Advect(string name="Advect")
     {
         // Arguments
@@ -35,6 +39,9 @@ class Advect : ITransformation
         // Compute shader data
         this.computeShader = TransformationUtilities.LoadComputeShader(kComputeShaderName);
         this.handle = computeShader.FindKernel(kKernel);
+
+        // Profiling
+        this.profilingSampler = new ProfilingSampler(name);
     }
 
     /**
@@ -42,9 +49,12 @@ class Advect : ITransformation
      * */
     public void Transform(TransformationContext context, IGrid DIn, IGrid DOut, IGrid V)
     {
-        Bind(context, DIn, DOut, V);
-        // Dispatch across D, since we are writing to D.
-        context.DispatchAcrossGrid(DOut, computeShader, handle);
+        using (new ProfilingScope(context.cmd, profilingSampler))
+        {
+            Bind(context, DIn, DOut, V);
+            // Dispatch across D, since we are writing to D.
+            context.DispatchAcrossGrid(DOut, computeShader, handle);
+        }
     }
 
     private void Bind(TransformationContext context, IGrid DIn, IGrid DOut, IGrid V)

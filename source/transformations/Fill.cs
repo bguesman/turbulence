@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Turbulence
 {
@@ -28,6 +29,9 @@ class Fill : ITransformation
     const string sBoundsLow = "_boundLow";
     const string sBoundsHigh = "_boundHigh";
 
+    // Profiling
+    ProfilingSampler profilingSampler;
+
     public Fill(float constant, Bounds bounds=null, string name="Set Constant") 
         : this(new Vector3(constant, 0, 0), bounds, name)
     {
@@ -48,12 +52,18 @@ class Fill : ITransformation
         // Compute shader data
         this.computeShader = TransformationUtilities.LoadComputeShader(kComputeShaderName);
         this.handle = computeShader.FindKernel(kKernel);
+
+        // Profiling
+        this.profilingSampler = new ProfilingSampler(name);
     }
 
     public void Transform(TransformationContext context, IGrid grid)
     {
-        Bind(grid);
-        context.DispatchAcrossGrid(grid, computeShader, handle);
+        using (new ProfilingScope(context.cmd, profilingSampler))
+        {
+            Bind(grid);
+            context.DispatchAcrossGrid(grid, computeShader, handle);
+        }
     }
 
     private void Bind(IGrid grid)
