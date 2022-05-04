@@ -17,7 +17,7 @@ class DenseGrid : IGrid
     string name;
     RTHandle texture;
 
-    public DenseGrid(Vector3Int resolution, GridDatatype datatype, string name="Dense Grid")
+    public DenseGrid(Vector3Int resolution, GridDatatype datatype, string name="Dense Grid", bool useMipMap=false)
     {
         this.resolution = resolution;
         this.datatype = datatype;
@@ -31,7 +31,7 @@ class DenseGrid : IGrid
                     dimension: TextureDimension.Tex3D,
                     colorFormat: GraphicsFormat.R16_SFloat,
                     enableRandomWrite: true,
-                    useMipMap: false,
+                    useMipMap: useMipMap,
                     autoGenerateMips: false,
                     name: this.name);
                 break;
@@ -42,7 +42,7 @@ class DenseGrid : IGrid
                     dimension: TextureDimension.Tex3D,
                     colorFormat: GraphicsFormat.R16G16B16A16_SFloat,
                     enableRandomWrite: true,
-                    useMipMap: false,
+                    useMipMap: useMipMap,
                     autoGenerateMips: false,
                     name: this.name);
                 break;
@@ -53,7 +53,7 @@ class DenseGrid : IGrid
                     dimension: TextureDimension.Tex3D,
                     colorFormat: GraphicsFormat.R16G16B16A16_SFloat,
                     enableRandomWrite: true,
-                    useMipMap: false,
+                    useMipMap: useMipMap,
                     autoGenerateMips: false,
                     name: this.name);
                 break;

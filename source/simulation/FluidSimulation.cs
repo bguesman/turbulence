@@ -29,7 +29,7 @@ class FluidSimulation : MonoBehaviour
     // For profiling
     ProfilingSampler profilingSampler;
 
-    public void OnEnable ()
+    public void OnEnable()
     {
         // Constants
         kResolution = new Vector3Int(128, 128, 128);
@@ -38,8 +38,8 @@ class FluidSimulation : MonoBehaviour
         // Define grids
         this.velocity = new DenseGrid(kResolution, GridDatatype.eVector3, "Velocity");
         this.velocityTemp = new DenseGrid(kResolution, GridDatatype.eVector3, "Velocity Temp");
-        this.density = new DenseGrid(kResolution, GridDatatype.eScalar, "Density");
-        this.densityTemp = new DenseGrid(kResolution, GridDatatype.eScalar, "Density Temp");
+        this.density = new DenseGrid(kResolution, GridDatatype.eScalar, "Density", useMipMap:true);
+        this.densityTemp = new DenseGrid(kResolution, GridDatatype.eScalar, "Density Temp", useMipMap:true);
         this.pressure = new DenseGrid(kResolution, GridDatatype.eScalar, "Pressure");
         this.pressureTemp = new DenseGrid(kResolution, GridDatatype.eScalar, "Pressure Temp");
         this.divergenceV = new DenseGrid(kResolution, GridDatatype.eScalar, "Divergence V");
@@ -65,7 +65,7 @@ class FluidSimulation : MonoBehaviour
         advectVelocity = new Advect("Advect Velocity");
         velocityBoundary = new Boundary(Boundary.BoundaryCondition.eFreeSlip, "Velocity Boundary");
         diffuseVelocity = new Diffuse(0.005f, "Diffuse Velocity");
-        pressureSolve = new PressureSolve(40, "Pressure Solve");
+        pressureSolve = new PressureSolve(20, "Pressure Solve");
         velocityProject = new Project("Velocity Project");
         vorticity = new VorticityConfinement(10.0f, "Vorticity Confinement");
 
@@ -142,6 +142,7 @@ class FluidSimulation : MonoBehaviour
         // Update density
         addDensity.Transform(context, densityTemp);
         advectDensity.Transform(context, densityTemp, density, velocity);
+        context.cmd.GenerateMips(density.GetTexture());
     }
 
     public DenseGrid DensityGrid()
