@@ -9,7 +9,7 @@ Shader "Turbulence/FluidUnlit"
     }
     SubShader
     {
-        Tags {"Queue" = "Transparent" "RenderType" = "Transparent"}
+        Tags {"RenderPipeline" = "HDRenderPipeline" "Queue" = "Transparent" "RenderType" = "Transparent"}
         LOD 100
         Blend SrcAlpha OneMinusSrcAlpha
         Cull Back
@@ -30,7 +30,7 @@ Shader "Turbulence/FluidUnlit"
             // #include "UnityDeferredLibrary.cginc"
             // #include "UnityLightingCommon.cginc"
             #include "Assets/Turbulence/source/rendering/Geometry.hlsl"
-            #include "Assets/Turbulence/source/rendering/Resources/LightLoopShaderVariables.hlsl"
+            #include "Assets/Turbulence/source/rendering/lighting/lights.hlsl"
             // #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
             // #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
             // #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariablesFunctions.hlsl"
@@ -58,6 +58,9 @@ Shader "Turbulence/FluidUnlit"
             fixed4 _ScatteringColor;
             fixed4 _AbsorptionColor;
             sampler3D _DensityTex;
+            SamplerState sampler_DensityTex;
+
+            uniform int _TEST_VARIABLE;
 
             v2f vert (appdata v)
             {
@@ -92,21 +95,53 @@ Shader "Turbulence/FluidUnlit"
                 // Raymarch 3D Texture to compute transmittance and lighting.
                 float3 opticalDepth = 0;
                 float3 light = 0;
-                const int kSamples = 8;
+                const int kSamples = 32;
                 float step = t * rcp((float) kSamples);
                 for (int sample = 0; sample < kSamples; sample++)
                 {
+                    // Generate our sample point
                     float sampleT = start + step * (sample + 0.5);
                     float3 samplePoint = o + d * sampleT;
+
+                    // Generate UV in box and sample density
                     float3 sampleUV = Geometry::uvAABB(samplePoint, unity_WorldToObject);
                     float density = densityRemap * tex3D(_DensityTex, sampleUV);
+
+                    // Add to global optical depth estimate along ray
                     float3 localOpticalDepth = density * step * _AbsorptionColor;
                     opticalDepth += localOpticalDepth;
-                    // for (int l = 0; l < _DirectionalLightCount; l++)
-                    // {
-                    //     light += exp(-opticalDepth) * (1 - exp(-localOpticalDepth)) * (_DirectionalLightDatas[l].color + 1);
-                    // }
-                    light += exp(-opticalDepth) * (1 - exp(-localOpticalDepth));
+
+                    // Ambient light
+                    light += exp(-opticalDepth) * (1 - exp(-localOpticalDepth)) * half3(unity_SHAr.w, unity_SHAg.w, unity_SHAb.w);
+
+                    // TODO: energy-conserving integration
+                    for (int l = 0; l < _TurbulenceNumDirectionalLights; l++)
+                    {
+                        // Estimate self-shadowing
+                        DirectionalLightMirror directionalLight = _TurbulenceDirectionalLights[l];
+                        float3 L = -directionalLight.forward;
+                        float3 sampleOS = mul(unity_WorldToObject, float4(samplePoint, 1)).xyz;
+                        float3 L_OS = mul(unity_WorldToObject, float4(L, 0)).xyz;
+                        
+                        float2 shadowIntersection = Geometry::rayBoxDst(boxLowBound, boxHighBound, sampleOS, 1/L_OS);
+                        
+                        const int kShadowSamples = 4;
+                        float shadowStep = shadowIntersection.y * rcp((float) kShadowSamples);
+                        float shadowOpticalDepth = 0;
+                        for (int shadowSample = 0; shadowSample < kShadowSamples; shadowSample++)
+                        {
+                            float shadowSampleT = shadowStep * (shadowSample + 0.5);
+                            float3 shadowSamplePoint = samplePoint + L * shadowSampleT;
+                            float3 shadowUV = Geometry::uvAABB(shadowSamplePoint, unity_WorldToObject);
+                            shadowOpticalDepth += tex3D(_DensityTex, shadowUV);
+                            // shadowOpticalDepth += _DensityTex.Sample(sampler_DensityTex, shadowUV);
+                        }
+                        
+                        shadowOpticalDepth *= shadowStep * densityRemap * _AbsorptionColor;
+                        float3 shadow = exp(-shadowOpticalDepth);
+
+                        light += shadow * exp(-opticalDepth) * (1 - exp(-localOpticalDepth)) * (directionalLight.color);
+                    }
                 }
 
                 // Use depth to compute transmittance.
@@ -114,12 +149,7 @@ Shader "Turbulence/FluidUnlit"
                 float alpha = 1 - min(min(T.x, T.y), T.z);
                 light *= _ScatteringColor;
 
-                // do something dumb
                 fixed4 col = fixed4(light, alpha);
-
-                // sample the texture
-                // fixed4 col = _Color * tex3D(_DensityTex, float3(0, 0, 0));
-                // fixed4 col = fixed4(d, 1);
 
                 // apply fog
                 UNITY_APPLY_FOG(i.fogCoord, col);
