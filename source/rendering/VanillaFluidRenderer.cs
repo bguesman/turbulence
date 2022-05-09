@@ -18,7 +18,7 @@ class VanillaFluidRenderer : MonoBehaviour
         if (simulation == null || material == null)
             return;
         
-        material.SetTexture("_DensityTex", simulation.DensityGrid().GetTexture());
+        material.SetTexture("_Density", simulation.DensityGrid().GetTexture());
     }
 }
 
