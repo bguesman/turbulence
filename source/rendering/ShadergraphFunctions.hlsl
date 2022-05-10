@@ -2,6 +2,7 @@
 #define TURBULENCE_SHADERGRAPH_FUNCTIONS_HLSL
 
 #include "Geometry.hlsl"
+#include "lighting/Lights.hlsl"
 
 struct IntersectBoxInput
 {
@@ -56,15 +57,43 @@ void IntersectBox_half(in half3 rayOrigin, in half3 rayDirection,
     dist = o.dist;
 }
 
+struct FluidMaterial
+{
+    UnityTexture3D densityTex;
+    float density;
+    float3 extinctionColor;
+    float3 scatteringColor;
+    float ambientDimmer;
+    int primarySamples;
+    int shadowSamples;
+};
+float3 transmittance(Geometry::Ray ray, float4x4 worldToObject, FluidMaterial material)
+{
+    Geometry::Ray rayOS = ray.transform(worldToObject);
+    float2 shadowIntersection = Geometry::RayBoxDst(rayOS, Geometry::Bounds::Unit());
+    
+    float shadowStep = shadowIntersection.y * rcp((float) material.shadowSamples);
+    float shadowOpticalDepth = 0;
+    for (int shadowSample = 0; shadowSample < material.shadowSamples; shadowSample++)
+    {
+        float3 shadowSamplePoint = ray.origin + ray.direction * shadowStep * (shadowSample + 0.5);
+        float3 shadowUV = Geometry::UnitUVAABB(shadowSamplePoint, worldToObject);
+        shadowOpticalDepth += SAMPLE_TEXTURE3D_LOD(material.densityTex.tex, s_linear_clamp_sampler, shadowUV, 4).x;
+    }
 
-TEXTURE3D(_DensityTexture);
+    shadowOpticalDepth *= shadowStep * material.density * material.extinctionColor;
+    return exp(-shadowOpticalDepth);
+}
+
 struct RaymarchInput
 {
     Geometry::Ray ray;
     float hit;
     float dist;
     float4x4 worldToObject;
-    UnityTexture3D densityTex;
+    FluidMaterial material;
+    float exposure;
+    float jitter;
 };
 struct RaymarchOutput
 {
@@ -78,32 +107,60 @@ void Raymarch(in RaymarchInput i, out RaymarchOutput o)
     o.color = 0;
 
     float3 opticalDepth = 0;
-    float3 lighting = 1;
-    const int kSamples = 32;
-    float step = i.dist * rcp((float) kSamples);
-    for (int sample = 0; sample < kSamples; sample++)
+    float3 lighting = 0;
+    float step = i.dist * rcp((float) i.material.primarySamples);
+    for (int sample = 0; sample < i.material.primarySamples; sample++)
     {
         // Generate our sample point
-        float sampleT = i.hit + step * (sample + 0.5);
+        float sampleT = i.hit + step * (sample + i.jitter);
         float3 samplePoint = i.ray.origin + i.ray.direction * sampleT;
 
         // Generate UV in box and sample density
         float3 sampleUV = Geometry::UnitUVAABB(samplePoint, i.worldToObject);
-        float density = 10 * SAMPLE_TEXTURE3D_LOD(i.densityTex.tex, s_linear_clamp_sampler, sampleUV, 0).x;// i.densityTex.tex.Sample(s_linear_clamp_sampler, sampleUV);
+        float density = i.material.density * SAMPLE_TEXTURE3D_LOD(i.material.densityTex.tex, s_linear_clamp_sampler, sampleUV, 0).x;// i.densityTex.tex.Sample(s_linear_clamp_sampler, sampleUV);
 
         // Add to global optical depth estimate along ray
-        float3 localOpticalDepth = density * step;// * _AbsorptionColor;
+        float3 localOpticalDepth = density * step * i.material.extinctionColor;
+
+        // Accumulate lighting
+        float3 lightingIntegration = exp(-opticalDepth) * (1 - exp(-localOpticalDepth));
+        lighting += lightingIntegration * i.exposure * i.material.ambientDimmer * float3(unity_SHAr.w, unity_SHAg.w, unity_SHAb.w);
+        for (int l = 0; l < _TurbulenceNumDirectionalLights; l++)
+        {
+            DirectionalLightMirror directionalLight = _TurbulenceDirectionalLights[l];
+            Geometry::Ray shadowRay = {samplePoint, -directionalLight.forward};
+            float3 shadow = transmittance(shadowRay, i.worldToObject, i.material);
+            lighting += shadow * lightingIntegration * directionalLight.color;
+        }
+
         opticalDepth += localOpticalDepth;
     }
 
-    // Use depth to compute transmittance.
-    float3 T = exp(-opticalDepth);
-    o.alpha = 1 - T;
-    o.color = lighting;
+    // Use depth to compute transmittance, and subtract from 1 to get alpha.
+    float3 scatteringAlbedo = i.material.scatteringColor * max(1e-6, rcp(i.material.extinctionColor));
+    o.alpha = 1 - exp(-opticalDepth);
+    o.color = scatteringAlbedo * lighting;
 }
-void Raymarch_float(in float3 rayOrigin, in float3 rayDirection,
-    in float hit, in float dist, in float4x4 worldToObject,
+void Raymarch_float(
+    // ray params
+    in float3 rayOrigin, 
+    in float3 rayDirection,
+    in float hit, 
+    in float dist, 
+    in float4x4 worldToObject,
+    // material params
     in UnityTexture3D densityTex,
+    in float density,
+    in float3 extinctionColor,
+    in float3 scatteringColor,
+    in float ambientDimmer,
+    in float primarySamples,
+    in float shadowSamples,
+    // lighting context
+    in float exposure,
+    // random noise
+    in float jitter,
+    // output
     out float3 color,
     out float3 alpha)
 {
@@ -115,7 +172,15 @@ void Raymarch_float(in float3 rayOrigin, in float3 rayDirection,
     i.hit = hit;
     i.dist = dist;
     i.worldToObject = worldToObject;
-    i.densityTex = densityTex;
+    i.material.densityTex = densityTex;
+    i.material.density = density;
+    i.material.extinctionColor = extinctionColor;
+    i.material.scatteringColor = scatteringColor;
+    i.material.ambientDimmer = ambientDimmer;
+    i.material.primarySamples = primarySamples;
+    i.material.shadowSamples = shadowSamples;
+    i.exposure = exposure;
+    i.jitter = jitter;
 
     // Call function
     Raymarch(i, o);
@@ -124,11 +189,28 @@ void Raymarch_float(in float3 rayOrigin, in float3 rayDirection,
     color = o.color;
     alpha = o.alpha;
 }
-void Raymarch_half(in half3 rayOrigin, in half3 rayDirection,
-    in half hit, in half dist, in half4x4 worldToObject,
-    in UnityTexture3D densityTex, //
-    out float3 color,
-    out float3 alpha)
+void Raymarch_half(
+    // ray params
+    in half3 rayOrigin, 
+    in half3 rayDirection,
+    in half hit, 
+    in half dist, 
+    in half4x4 worldToObject,
+    // material params
+    in UnityTexture3D densityTex,
+    in half density,
+    in half3 extinctionColor,
+    in half3 scatteringColor,
+    in float ambientDimmer,
+    in half primarySamples,
+    in half shadowSamples,
+    // lighting context
+    in half exposure,
+    // random noise
+    in float jitter,
+    // output
+    out half3 color,
+    out half3 alpha)
 {
     // Prep inputs/outputs
     RaymarchInput i;
@@ -138,7 +220,15 @@ void Raymarch_half(in half3 rayOrigin, in half3 rayDirection,
     i.hit = hit;
     i.dist = dist;
     i.worldToObject = worldToObject;
-    i.densityTex = densityTex;
+    i.material.densityTex = densityTex;
+    i.material.density = density;
+    i.material.extinctionColor = extinctionColor;
+    i.material.scatteringColor = scatteringColor;
+    i.material.ambientDimmer = ambientDimmer;
+    i.material.primarySamples = primarySamples;
+    i.material.shadowSamples = shadowSamples;
+    i.exposure = exposure;
+    i.jitter = jitter;
 
     // Call function
     Raymarch(i, o);

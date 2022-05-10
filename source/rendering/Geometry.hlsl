@@ -5,6 +5,14 @@ struct Ray
 {
   float3 origin;
   float3 direction;
+  Ray transform(float4x4 mat)
+  {
+    Ray r = {
+      mul(mat, float4(origin, 1)).xyz,
+      mul(mat, float4(direction, 0)).xyz
+    };
+    return r;
+  }
 };
 
 struct Bounds
@@ -18,6 +26,15 @@ struct Bounds
   bool TestInclusive(float3 p)
   {
     return all(p >= low && p <= high);
+  }
+  static Bounds MakeBounds(float3 low, float3 high)
+  {
+    Bounds b = {low, high};
+    return b;
+  }
+  static Bounds Unit()
+  {
+    return MakeBounds(-0.5, 0.5);
   }
 };
 
