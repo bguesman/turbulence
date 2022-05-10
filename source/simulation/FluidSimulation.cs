@@ -15,7 +15,7 @@ class FluidSimulation : MonoBehaviour
 
     // Transformations
     Fill clearDensity, clearVelocity, clearDensityTemp, clearVelocityTemp;
-    Add addDensity, addVelocity, addRandomVelocityPerturbations;
+    Add addDensity, addVelocity, addGravity, addRandomVelocityPerturbations;
     Advect advectDensity, advectVelocity;
     Boundary velocityBoundary;
     Diffuse diffuseVelocity;
@@ -55,11 +55,14 @@ class FluidSimulation : MonoBehaviour
             bounds: new Bounds(0.3f, 0.7f, 0.1f, 0.2f, 0.3f, 0.7f), 
             name: "Add Density");
         addVelocity = new Add(new Vector3(0, 2.0f, 0), 
-            bounds: new Bounds(0.4f, 0.6f, 0, 1, 0.4f, 0.6f), 
+            bounds: new Bounds(0, 1, 0, 0.7f, 0, 1), 
             name: "Add Velocity");
         addRandomVelocityPerturbations = new Add(new Vector3(0, 0, 0), 
             bounds: new Bounds(0.4f, 0.6f, 0.4f, 0.6f, 0.4f, 0.6f), 
             name: "Add Velocity Perturbations");
+        addGravity = new Add(new Vector3(0, -3.0f, 0), 
+            bounds: new Bounds(0, 1, 0.5f, 1, 0, 1), 
+            name: "Add Velocity");
 
         advectDensity = new Advect("Advect Density");
         advectVelocity = new Advect("Advect Velocity");
@@ -111,6 +114,7 @@ class FluidSimulation : MonoBehaviour
     void AddForces(TransformationContext context)
     {
         addVelocity.Transform(context, velocity);
+        addGravity.Transform(context, velocity);
 
         // if (Time.frameCount % 60 < 5)
         //     addRandomVelocityPerturbations.constant.x = 2 * Mathf.Sin(Time.time);

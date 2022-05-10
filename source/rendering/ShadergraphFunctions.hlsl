@@ -85,6 +85,27 @@ float3 transmittance(Geometry::Ray ray, float4x4 worldToObject, FluidMaterial ma
     return exp(-shadowOpticalDepth);
 }
 
+float3 fibonacciHemisphere(int i, int n) {
+    float i_mid = i + 0.5;
+    float cos_phi = 1 - i/float(n);
+    float sin_phi = sqrt(1 - cos_phi * cos_phi);
+    float theta = 2 * PI * i * rcp(1.6180339887498948482);
+    float cos_theta = cos(theta);
+    float sin_theta = sqrt(1 - cos_theta * cos_theta);
+    return float3(cos_theta * sin_phi, cos_phi, sin_theta * sin_phi);
+}
+float3 ambientOcclusion(float3 p, float4x4 worldToObject, FluidMaterial material)
+{   
+    float3 averageTransmittance = 0;
+    int kSamples = 3;
+    for (int i = 0; i < kSamples; i++)
+    {
+        Geometry::Ray r = {p, fibonacciHemisphere(i, kSamples)};
+        averageTransmittance += transmittance(r, worldToObject, material);
+    }
+    return averageTransmittance * rcp((float) kSamples);
+}
+
 struct RaymarchInput
 {
     Geometry::Ray ray;
@@ -124,7 +145,7 @@ void Raymarch(in RaymarchInput i, out RaymarchOutput o)
 
         // Accumulate lighting
         float3 lightingIntegration = exp(-opticalDepth) * (1 - exp(-localOpticalDepth));
-        lighting += lightingIntegration * i.exposure * i.material.ambientDimmer * float3(unity_SHAr.w, unity_SHAg.w, unity_SHAb.w);
+        lighting += ambientOcclusion(samplePoint, i.worldToObject, i.material) * lightingIntegration * i.exposure * i.material.ambientDimmer * float3(unity_SHAr.w, unity_SHAg.w, unity_SHAb.w);
         for (int l = 0; l < _TurbulenceNumDirectionalLights; l++)
         {
             DirectionalLightMirror directionalLight = _TurbulenceDirectionalLights[l];
