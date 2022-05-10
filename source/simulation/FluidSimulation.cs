@@ -24,7 +24,7 @@ class FluidSimulation : MonoBehaviour
     VorticityConfinement vorticity;
 
     // Grid resolution
-    Vector3Int kResolution = new Vector3Int(128, 128, 128);
+    Vector3Int kResolution = new Vector3Int(64, 64, 64);
 
     // For profiling
     ProfilingSampler profilingSampler;
@@ -32,7 +32,7 @@ class FluidSimulation : MonoBehaviour
     public void OnEnable()
     {
         // Constants
-        kResolution = new Vector3Int(128, 128, 128);
+        kResolution = new Vector3Int(64, 64, 64);
         profilingSampler = new ProfilingSampler("Fluid Volume Update");
 
         // Define grids
@@ -55,7 +55,7 @@ class FluidSimulation : MonoBehaviour
             bounds: new Bounds(0.3f, 0.7f, 0.1f, 0.2f, 0.3f, 0.7f), 
             name: "Add Density");
         addVelocity = new Add(new Vector3(0, 2.0f, 0), 
-            bounds: new Bounds(0, 1, 0, 0.7f, 0, 1), 
+            bounds: new Bounds(0.4f, 0.6f, 0, 0.5f, 0.4f, 0.6f), 
             name: "Add Velocity");
         addRandomVelocityPerturbations = new Add(new Vector3(0, 0, 0), 
             bounds: new Bounds(0.4f, 0.6f, 0.4f, 0.6f, 0.4f, 0.6f), 
@@ -67,10 +67,10 @@ class FluidSimulation : MonoBehaviour
         advectDensity = new Advect("Advect Density");
         advectVelocity = new Advect("Advect Velocity");
         velocityBoundary = new Boundary(Boundary.BoundaryCondition.eFreeSlip, "Velocity Boundary");
-        diffuseVelocity = new Diffuse(0.005f, "Diffuse Velocity");
+        diffuseVelocity = new Diffuse(0.01f, "Diffuse Velocity");
         pressureSolve = new PressureSolve(20, "Pressure Solve");
         velocityProject = new Project("Velocity Project");
-        vorticity = new VorticityConfinement(10.0f, "Vorticity Confinement");
+        vorticity = new VorticityConfinement(1.0f, "Vorticity Confinement");
 
         // Clear grids on start
         TransformationContext context = new TransformationContext(Time.deltaTime);
@@ -114,7 +114,7 @@ class FluidSimulation : MonoBehaviour
     void AddForces(TransformationContext context)
     {
         addVelocity.Transform(context, velocity);
-        addGravity.Transform(context, velocity);
+        // addGravity.Transform(context, velocity);
 
         // if (Time.frameCount % 60 < 5)
         //     addRandomVelocityPerturbations.constant.x = 2 * Mathf.Sin(Time.time);
@@ -127,7 +127,7 @@ class FluidSimulation : MonoBehaviour
         // if (Time.frameCount % 51 < 4)
         //     addRandomVelocityPerturbations.constant.y = 2 * Mathf.Sin(Time.time * 2.17f);
         // else
-        //     addVelocity.constant.y = 0;
+        //     addRandomVelocityPerturbations.constant.y = 0;
         // addRandomVelocityPerturbations.Transform(context, velocity);
     }
 

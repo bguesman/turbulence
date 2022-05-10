@@ -1,0 +1,68 @@
+#pragma only_renderers d3d11 ps4 xboxone vulkan metal switch
+
+#pragma kernel GENERIC main=GENERIC
+#pragma kernel DOWNSAMPLE_2X main=DOWNSAMPLE_2X
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariablesFunctions.hlsl"
+
+#include "../Common/GridUtilities.hlsl"
+
+TEXTURE3D(_Tex);
+RW_TEXTURE3D(float4, _Target);
+float4 _Tex_resolution;
+float4 _Target_resolution;
+
+[numthreads(8, 8, 8)]
+void GENERIC(uint3 id : SV_DispatchThreadID) 
+{
+  float3 uv = (id + 0.5) * rcp(_Target_resolution.xyz);
+  // TODO: why doesn't this work?
+  // if (any(_Target_resolution.xyz < _Tex_resolution.xyz))
+  // {
+  //   // Gather
+  //   float4 accum = 0;
+  //   int neighborhood = 0.5 * _Tex_resolution.x / _Target_resolution.x;
+  //   float total = (neighborhood * 2) * (neighborhood * 2) * (neighborhood * 2);
+  //   for (int i = -neighborhood; i < neighborhood; i++)
+  //   {
+  //     for (int j = -neighborhood; j < neighborhood; i++)
+  //     {
+  //       for (int k = -neighborhood; k < neighborhood; i++)
+  //       {
+  //         int3 sampleIdx = clamp((uv * _Tex_resolution.xyz) + int3(i, j, k), 0, _Tex_resolution.xyz - 1);
+  //         accum += LOAD_TEXTURE3D_LOD(_Tex, sampleIdx, 0);
+  //       }
+  //     }
+  //   }
+  //   _Target[id] = accum / total;
+  // }
+  // else
+  // {
+    _Target[id] = SAMPLE_TEXTURE3D_LOD(_Tex, s_linear_clamp_sampler, uv, 0);
+  // }
+}
+
+[numthreads(8, 8, 8)]
+void DOWNSAMPLE_2X(uint3 id : SV_DispatchThreadID) 
+{
+  float3 uv = (id + 0.5) * rcp(_Target_resolution.xyz);
+  int3 center = clamp((uv * _Tex_resolution.xyz), 0, _Tex_resolution.xyz - 1);
+
+  GridUtilities::Neighborhood n = GridUtilities::GetNeighborhood(center, _Tex_resolution.xyz);
+  float4 accum = 0;
+
+  // Center
+  accum += (2.0/8.0) * LOAD_TEXTURE3D_LOD(_Tex, center, 0);
+
+  // Sides
+  accum += (1.0/8.0) * LOAD_TEXTURE3D_LOD(_Tex, n.left, 0);
+  accum += (1.0/8.0) * LOAD_TEXTURE3D_LOD(_Tex, n.right, 0);
+  accum += (1.0/8.0) * LOAD_TEXTURE3D_LOD(_Tex, n.up, 0);
+  accum += (1.0/8.0) * LOAD_TEXTURE3D_LOD(_Tex, n.down, 0);
+  accum += (1.0/8.0) * LOAD_TEXTURE3D_LOD(_Tex, n.forward, 0);
+  accum += (1.0/8.0) * LOAD_TEXTURE3D_LOD(_Tex, n.backward, 0);
+
+  _Target[id] = accum;
+}
