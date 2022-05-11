@@ -66,6 +66,7 @@ struct FluidMaterial
     float ambientDimmer;
     int primarySamples;
     int shadowSamples;
+    int ambientOcclusionSamples;
 };
 float3 transmittance(Geometry::Ray ray, float4x4 worldToObject, FluidMaterial material)
 {
@@ -97,13 +98,12 @@ float3 fibonacciHemisphere(int i, int n) {
 float3 ambientOcclusion(float3 p, float4x4 worldToObject, FluidMaterial material)
 {   
     float3 averageTransmittance = 0;
-    int kSamples = 3;
-    for (int i = 0; i < kSamples; i++)
+    for (int i = 0; i < material.ambientOcclusionSamples; i++)
     {
-        Geometry::Ray r = {p, fibonacciHemisphere(i, kSamples)};
+        Geometry::Ray r = {p, fibonacciHemisphere(i, material.ambientOcclusionSamples)};
         averageTransmittance += transmittance(r, worldToObject, material);
     }
-    return averageTransmittance * rcp((float) kSamples);
+    return averageTransmittance * rcp((float) material.ambientOcclusionSamples);
 }
 
 struct RaymarchInput
@@ -138,7 +138,7 @@ void Raymarch(in RaymarchInput i, out RaymarchOutput o)
 
         // Generate UV in box and sample density
         float3 sampleUV = Geometry::UnitUVAABB(samplePoint, i.worldToObject);
-        float density = i.material.density * SAMPLE_TEXTURE3D_LOD(i.material.densityTex.tex, s_linear_clamp_sampler, sampleUV, 0).x;// i.densityTex.tex.Sample(s_linear_clamp_sampler, sampleUV);
+        float density = i.material.density * SAMPLE_TEXTURE3D_LOD(i.material.densityTex.tex, s_linear_clamp_sampler, sampleUV, 0).x;
 
         // Add to global optical depth estimate along ray
         float3 localOpticalDepth = density * step * i.material.extinctionColor;
@@ -177,6 +177,7 @@ void Raymarch_float(
     in float ambientDimmer,
     in float primarySamples,
     in float shadowSamples,
+    in float ambientOcclusionSamples,
     // lighting context
     in float exposure,
     // random noise
@@ -200,6 +201,7 @@ void Raymarch_float(
     i.material.ambientDimmer = ambientDimmer;
     i.material.primarySamples = primarySamples;
     i.material.shadowSamples = shadowSamples;
+    i.material.ambientOcclusionSamples = ambientOcclusionSamples;
     i.exposure = exposure;
     i.jitter = jitter;
 
@@ -222,13 +224,14 @@ void Raymarch_half(
     in half density,
     in half3 extinctionColor,
     in half3 scatteringColor,
-    in float ambientDimmer,
+    in half ambientDimmer,
     in half primarySamples,
     in half shadowSamples,
+    in half ambientOcclusionSamples,
     // lighting context
     in half exposure,
     // random noise
-    in float jitter,
+    in half jitter,
     // output
     out half3 color,
     out half3 alpha)
@@ -248,6 +251,7 @@ void Raymarch_half(
     i.material.ambientDimmer = ambientDimmer;
     i.material.primarySamples = primarySamples;
     i.material.shadowSamples = shadowSamples;
+    i.material.ambientOcclusionSamples = ambientOcclusionSamples;
     i.exposure = exposure;
     i.jitter = jitter;
 

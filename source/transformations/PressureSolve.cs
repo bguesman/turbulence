@@ -29,7 +29,7 @@ class PressureSolve : ITransformation
         this.steps = steps;
 
         // Sub-transforms
-        jacobi = new JacobiSolveMultiGrid(steps, -1.0f, 1.0f/6.0f);
+        jacobi = new JacobiSolveMultiGrid(steps, -1.0f, 1.0f/6.0f, tiers:4);
         clearPressure = new Fill(0.0f, name: "Clear Pressure");
         computeDivergence = new Divergence(name: "Compute Velocity Divergence");
         pressureBoundary = new Boundary(Boundary.BoundaryCondition.eNeumann, "Pressure Boundary");

@@ -24,7 +24,7 @@ class FluidSimulation : MonoBehaviour
     VorticityConfinement vorticity;
 
     // Grid resolution
-    Vector3Int kResolution = new Vector3Int(64, 64, 64);
+    Vector3Int kResolution = new Vector3Int(128, 128, 128);
 
     // For profiling
     ProfilingSampler profilingSampler;
@@ -32,7 +32,7 @@ class FluidSimulation : MonoBehaviour
     public void OnEnable()
     {
         // Constants
-        kResolution = new Vector3Int(64, 64, 64);
+        kResolution = new Vector3Int(128, 128, 128);
         profilingSampler = new ProfilingSampler("Fluid Volume Update");
 
         // Define grids

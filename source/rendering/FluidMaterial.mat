@@ -71,7 +71,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Blue_Noise:
-        m_Texture: {fileID: 2800000, guid: 2177ef4662d44944d9ddaf3ad36f3537, type: 3}
+        m_Texture: {fileID: 2800000, guid: 82fd12dcc186bcd45b41780ecf5b6fdf, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _CoatMaskMap:
@@ -187,6 +187,7 @@ Material:
     - _AlphaRemapMin: 0
     - _AlphaSrcBlend: 0
     - _Ambient_Dimmer: 1
+    - _Ambient_Occlusion_Samples: 4
     - _Anisotropy: 0
     - _BlendMode: 0
     - _CoatMask: 0
@@ -203,7 +204,7 @@ Material:
     - _DecalMeshViewBias: 0
     - _DecalStencilRef: 16
     - _DecalStencilWriteMask: 16
-    - _Density: 27.2
+    - _Density: 50
     - _DepthOffsetEnable: 0
     - _DetailAlbedoScale: 1
     - _DetailNormalScale: 1
@@ -255,13 +256,13 @@ Material:
     - _PPDMinSamples: 5
     - _PPDPrimitiveLength: 1
     - _PPDPrimitiveWidth: 1
-    - _Primary_Samples: 8
+    - _Primary_Samples: 32
     - _RayTracing: 0
     - _ReceivesSSR: 1
     - _ReceivesSSRTransparent: 0
     - _RefractionModel: 0
     - _RenderQueueType: 5
-    - _Shadow_Samples: 2
+    - _Shadow_Samples: 4
     - _Smoothness: 0.5
     - _SmoothnessRemapMax: 1
     - _SmoothnessRemapMin: 0
@@ -312,11 +313,11 @@ Material:
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
     - _EmissiveColor: {r: 0, g: 0, b: 0, a: 1}
     - _EmissiveColorLDR: {r: 0, g: 0, b: 0, a: 1}
-    - _Extinction_Color: {r: 0.79607844, g: 0.92202723, b: 1, a: 0}
+    - _Extinction_Color: {r: 1, g: 1, b: 1, a: 0}
     - _InvPrimScale: {r: 1, g: 1, b: 0, a: 0}
     - _IridescenceThicknessRemap: {r: 0, g: 1, b: 0, a: 0}
     - _ScatteringColor: {r: 1, g: 1, b: 1, a: 1}
-    - _Scattering_Color: {r: 0.79607844, g: 0.92156863, b: 1, a: 0}
+    - _Scattering_Color: {r: 1, g: 1, b: 1, a: 0}
     - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
     - _ThicknessRemap: {r: 0, g: 1, b: 0, a: 0}
     - _TransmittanceColor: {r: 1, g: 1, b: 1, a: 1}

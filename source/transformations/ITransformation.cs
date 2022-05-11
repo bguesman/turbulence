@@ -39,9 +39,29 @@ class TransformationContext
         uint groupSizeX = 1, groupSizeY = 1, groupSizeZ = 1;
         computeShader.GetKernelThreadGroupSizes(handle, out groupSizeX, out groupSizeY, out groupSizeZ);
         cmd.DispatchCompute(computeShader, handle, 
-            (int) Mathf.Ceil(grid.Resolution().x / groupSizeX),
-            (int) Mathf.Ceil(grid.Resolution().y / groupSizeY),
-            (int) Mathf.Ceil(grid.Resolution().z / groupSizeZ));
+            (int) Mathf.Max(1, Mathf.Ceil(grid.Resolution().x / groupSizeX)),
+            (int) Mathf.Max(1, Mathf.Ceil(grid.Resolution().y / groupSizeY)),
+            (int) Mathf.Max(1, Mathf.Ceil(grid.Resolution().z / groupSizeZ)));
+    }
+
+    public void DispatchAcrossBoundary(IGrid grid, ComputeShader computeShader, int handle)
+    {
+        // Get compute shader thread pool sizes
+        uint groupSizeX = 1, groupSizeY = 1, groupSizeZ = 1;
+        computeShader.GetKernelThreadGroupSizes(handle, out groupSizeX, out groupSizeY, out groupSizeZ);
+
+        // Dispatch as 6 "slices" in the z-dimension, each of max resolution
+        // in x, y, and z directions. We'll distribution the slices as follows:
+        //  1: x low boundary
+        //  2: x high boundary
+        //  3: y low boundary
+        //  etc...
+        int maxRes = (int) Mathf.Max(1, Mathf.Max(Mathf.Max(grid.Resolution().x, grid.Resolution().y), grid.Resolution().z));
+        int groupsX = (int) Mathf.Max(1, Mathf.Ceil(maxRes / groupSizeX));
+        int groupsY = (int) Mathf.Max(1, Mathf.Ceil(maxRes / groupSizeY));
+        int groupsZ = (int) Mathf.Max(1, Mathf.Ceil(6 / groupSizeZ));
+     
+        cmd.DispatchCompute(computeShader, handle, groupsX, groupsY, groupsZ);
     }
 
     ~TransformationContext()

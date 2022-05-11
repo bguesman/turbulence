@@ -62,7 +62,7 @@ class Boundary : ITransformation
             // Select compute handle for appropriate boundary condition
             int handle = handles[(int) condition];
             Bind(grid, handle);
-            context.DispatchAcrossGrid(grid, computeShader, handle);
+            context.DispatchAcrossBoundary(grid, computeShader, handle);
         }
     }
 
